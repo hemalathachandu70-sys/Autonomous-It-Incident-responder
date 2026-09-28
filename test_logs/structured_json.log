@@ -1,0 +1,4 @@
+{"timestamp":"2024-01-15T03:42:00Z","level":"INFO","service":"order-service","message":"Order created","cpu_percent":35.2,"memory_percent":45.1,"error_rate":0.5}
+{"timestamp":"2024-01-15T03:42:10Z","level":"WARN","service":"order-service","message":"High latency detected 4200ms","cpu_percent":72.1,"memory_percent":68.3,"error_rate":12.4}
+{"timestamp":"2024-01-15T03:42:20Z","level":"ERROR","service":"order-service","message":"Database connection refused","cpu_percent":88.4,"memory_percent":79.2,"error_rate":34.7}
+{"timestamp":"2024-01-15T03:42:30Z","level":"ERROR","service":"order-service","message":"Connection pool exhausted max_size=10","cpu_percent":94.1,"memory_percent":82.6,"error_rate":67.8}

@@ -1,0 +1,6 @@
+Jan 15 03:40:00 server01 kernel: CPU0: Temperature above threshold
+Jan 15 03:41:00 server01 kernel: Out of memory: Kill process 1234 (java) score 900 or sacrifice child
+Jan 15 03:41:01 server01 kernel: Killed process 1234 (java) total-vm:2048000kB, anon-rss:524288kB
+Jan 15 03:41:02 server01 systemd[1]: payment-service.service: Main process exited, code=killed
+Jan 15 03:41:03 server01 systemd[1]: payment-service.service: Failed with result 'signal'
+Jan 15 03:41:04 server01 systemd[1]: payment-service.service: Service Enter failed state

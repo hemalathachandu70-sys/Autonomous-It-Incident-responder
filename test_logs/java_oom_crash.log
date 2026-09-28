@@ -1,0 +1,12 @@
+2024-01-15 03:40:00 INFO  payment-service: Request processed OK
+2024-01-15 03:40:30 INFO  payment-service: Request processed OK
+2024-01-15 03:41:00 WARN  payment-service: Memory usage at 78%
+2024-01-15 03:41:30 WARN  payment-service: Memory usage at 89%
+2024-01-15 03:42:00 ERROR payment-service: GC overhead limit exceeded
+2024-01-15 03:42:11 ERROR payment-service: java.lang.OutOfMemoryError: 
+  Java heap space
+2024-01-15 03:42:12 ERROR payment-service: Killed process 1234 (java) 
+  total-vm:2048000kB anon-rss:524288kB
+2024-01-15 03:42:13 ERROR payment-service: OOMKilled - container 
+  exceeded memory limit
+2024-01-15 03:42:14 ERROR payment-service: cpu_percent=97.4 memory_percent=98.1 error_rate=43.2

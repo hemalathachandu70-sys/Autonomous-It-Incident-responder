@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autonomous IT Incident Responder</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-bright: #f0f6fc;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --green: #238636;
+      --red: #da3633;
+      --orange: #d29922;
+      --purple: #8957e5;
+      --teal: #1f6feb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; }
+    body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Top Bar */
+    header {
+      background: #090d13;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header-title { font-size: 1.1rem; font-weight: 700; color: var(--text-bright); display: flex; align-items: center; gap: 8px; }
+    .header-modes { display: flex; gap: 8px; align-items: center; }
+    .mode-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .mode-btn.active { background: #1f6feb; color: #fff; border-color: #388bfd; }
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      background: #112217;
+      color: #3fb950;
+      border: 1px solid #238636;
+      padding: 4px 10px;
+      border-radius: 12px;
+    }
+    .pulse-dot { width: 8px; height: 8px; background: #3fb950; border-radius: 50%; box-shadow: 0 0 8px #3fb950; }
+
+    /* Main 3-Panel Layout */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 380px 1fr 360px;
+      flex: 1;
+      height: calc(100vh - 54px);
+      overflow: hidden;
+    }
+    .panel {
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+    }
+    .panel:last-child { border-right: none; }
+    .panel-header {
+      padding: 12px 16px;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Left Panel: Ingestion & Incident List */
+    .ingestion-accordion {
+      background: #131821;
+      border-bottom: 1px solid var(--border);
+      padding: 12px;
+    }
+    .ingest-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .btn {
+      background: #21262d;
+      border: 1px solid var(--border);
+      color: var(--text-bright);
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #30363d; }
+    .btn-primary { background: #238636; border-color: #2ea043; color: white; }
+    .btn-primary:hover { background: #2ea043; }
+    .btn-orange { background: #9e6a03; border-color: #bb8009; color: white; }
+    .btn-purple { background: #6e40c9; border-color: #8957e5; color: white; }
+
+    .input-group { margin-bottom: 8px; }
+    .input-label { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px; display: block; font-weight: 600; }
+    input[type="text"], textarea, select {
+      width: 100%;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-bright);
+      padding: 6px 8px;
+      font-size: 0.75rem;
+    }
+    textarea { height: 60px; resize: vertical; }
+
+    .incidents-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .incident-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .incident-card:hover { border-color: var(--accent); background: #1c2129; }
+    .incident-card.active { border-color: #58a6ff; box-shadow: 0 0 10px rgba(88, 166, 255, 0.2); }
+    .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .card-id { font-weight: 700; font-size: 0.85rem; color: var(--text-bright); }
+    .card-service { font-size: 0.8rem; font-weight: 600; color: #79c0ff; }
+    .card-meta { font-size: 0.7rem; color: var(--text-muted); display: flex; justify-content: space-between; margin-top: 6px; }
+
+    /* Source Badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-demo { background: #30363d; color: #c9d1d9; }
+    .badge-file { background: #0c2d6b; color: #58a6ff; border: 1px solid #1f6feb; }
+    .badge-windows { background: #5a3e0b; color: #f0883e; border: 1px solid #9e6a03; }
+    .badge-paste { background: #3d1f6d; color: #bc8cff; border: 1px solid #6e40c9; }
+    .badge-folder { background: #04423e; color: #39c5bb; border: 1px solid #1b7c83; }
+
+    .badge-p1 { background: #490202; color: #ff7b72; border: 1px solid #da3633; }
+    .badge-p2 { background: #4d2d00; color: #d29922; border: 1px solid #9e6a03; }
+
+    /* Center Panel: Detail */
+    .detail-body { flex: 1; overflow-y: auto; padding: 20px; }
+    .detail-section {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .section-title { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; display: flex; justify-content: space-between; }
+    .raw-log-box {
+      background: #090d13;
+      border: 1px solid #21262d;
+      border-radius: 6px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 0.72rem;
+      color: #7ee787;
+      max-height: 180px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    /* Right Panel: Live Agent Log */
+    .agent-log-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .log-item {
+      background: #11161d;
+      border-left: 3px solid #30363d;
+      padding: 8px 10px;
+      border-radius: 0 4px 4px 0;
+      font-size: 0.72rem;
+    }
+    .log-item.log_file_ingested { border-left-color: #3fb950; }
+    .log-item.log_paste_parsed { border-left-color: #a371f7; }
+    .log-item.windows_events_read { border-left-color: #d29922; }
+    .log-item.file_watcher_event { border-left-color: #39c5bb; }
+    .log-item.agent_action { border-left-color: #58a6ff; }
+    .log-item-header { display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--text-muted); font-size: 0.65rem; }
+    .log-item-msg { color: var(--text-bright); word-break: break-word; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <header>
+    <div class="header-title">
+      <span>⚡ AUTONOMOUS IT INCIDENT RESPONDER</span>
+    </div>
+    <div class="header-modes">
+      <button class="mode-btn active" id="btn-mode-demo" onclick="setMode('demo')">DEMO MODE</button>
+      <button class="mode-btn" id="btn-mode-real" onclick="setMode('real')">REAL LOG MODE</button>
+      <button class="mode-btn" id="btn-mode-both" onclick="setMode('both')">BOTH</button>
+      <div class="status-badge">
+        <span class="pulse-dot"></span>
+        <span id="active-mode-label">LIVE</span>
+      </div>
+      <span style="font-size: 0.8rem; font-weight: 700; color: #58a6ff; margin-left: 10px;" id="incident-count-badge">Incidents: 0</span>
+    </div>
+  </header>
+
+  <!-- 3-Panel Grid -->
+  <div class="dashboard-grid">
+
+    <!-- Left Panel: Ingestion & Incidents -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>Log Ingestion & Triggers</span>
+        <button class="btn" style="padding: 2px 6px; font-size: 0.65rem;" onclick="toggleIngestPanel()">Toggle</button>
+      </div>
+
+      <div class="ingestion-accordion" id="ingestion-panel">
+        <div class="ingest-actions">
+          <button class="btn btn-primary" onclick="triggerDemoSimulation()">Run Demo Sim</button>
+          <button class="btn btn-orange" onclick="readWindowsEvents()">Read Windows Events</button>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Upload Log File Path (or file on disk):</label>
+          <div style="display: flex; gap: 4px;">
+            <input type="text" id="file-path-input" placeholder="test_logs/java_oom_crash.log" value="test_logs/java_oom_crash.log">
+            <button class="btn btn-primary" onclick="ingestFile()">Ingest</button>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Paste Logs (Any Format):</label>
+          <textarea id="paste-input" placeholder="Paste Java OOM, JSON, Syslog, Apache or raw text here..."></textarea>
+          <div style="display: flex; gap: 4px; margin-top: 4px;">
+            <select id="paste-format-hint">
+              <option value="auto">Auto-detect format</option>
+              <option value="json">JSON Structured</option>
+              <option value="syslog">Syslog</option>
+              <option value="apache">Apache / Nginx</option>
+              <option value="windows">Windows XML</option>
+              <option value="csv">CSV Export</option>
+            </select>
+            <button class="btn btn-purple" onclick="ingestPaste()">Analyze & Ingest</button>
+          </div>
+        </div>
+
+        <div style="font-size: 0.68rem; color: var(--text-muted); margin-top: 6px;" id="watcher-status-text">
+          Watch folder: <b>./watched_logs</b> &nbsp;|&nbsp; Status: <span style="color:#3fb950;">● Active</span>
+        </div>
+      </div>
+
+      <div class="panel-header">
+        <span>Incident Queue</span>
+        <button class="btn" style="padding: 2px 6px; font-size: 0.65rem;" onclick="loadIncidents()">Refresh</button>
+      </div>
+      <div class="incidents-list" id="incidents-container">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- Center Panel: Incident Details -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>Incident Diagnostics & Resolution</span>
+        <button class="btn btn-primary" id="btn-run-pipeline" onclick="runPipelineForCurrent()" style="display: none;">Run Pipeline</button>
+      </div>
+      <div class="detail-body" id="detail-container">
+        <div style="text-align: center; color: var(--text-muted); margin-top: 60px;">
+          Select an incident from the left queue to view root-cause analysis and evidence.
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Live Agent Log -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>Live Agent & Ingestion Activity</span>
+        <button class="btn" style="padding: 2px 6px; font-size: 0.65rem;" onclick="clearLiveLog()">Clear</button>
+      </div>
+      <div class="agent-log-list" id="agent-log-container">
+        <div class="log-item agent_action">
+          <div class="log-item-header">
+            <span>SYSTEM</span>
+            <span>READY</span>
+          </div>
+          <div class="log-item-msg">Autonomous IT Incident Responder active in Dual-Mode.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let currentIncidentId = null;
+    let incidentsCache = [];
+
+    function setMode(mode) {
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('btn-mode-' + mode).classList.add('active');
+      document.getElementById('active-mode-label').innerText = mode.toUpperCase() + ' MODE';
+    }
+
+    function toggleIngestPanel() {
+      const p = document.getElementById('ingestion-panel');
+      p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function appendLiveLog(event_type, agent, message) {
+      const c = document.getElementById('agent-log-container');
+      const timeStr = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'log-item ' + event_type;
+      div.innerHTML = `
+        <div class="log-item-header">
+          <span>${agent.toUpperCase()}</span>
+          <span>${timeStr}</span>
+        </div>
+        <div class="log-item-msg">${message}</div>
+      `;
+      c.prepend(div);
+    }
+
+    function clearLiveLog() {
+      document.getElementById('agent-log-container').innerHTML = '';
+    }
+
+    async function loadIncidents() {
+      try {
+        const res = await fetch('/api/incidents');
+        const data = await res.json();
+        incidentsCache = data;
+        document.getElementById('incident-count-badge').innerText = 'Incidents: ' + data.length;
+
+        const cont = document.getElementById('incidents-container');
+        cont.innerHTML = '';
+        data.forEach(inc => {
+          const card = document.createElement('div');
+          card.className = 'incident-card' + (inc.id === currentIncidentId ? ' active' : '');
+          card.onclick = () => selectIncident(inc.id);
+
+          const srcBadgeClass = 'badge-' + (inc.source_type || 'demo').toLowerCase();
+          const sevBadgeClass = 'badge-' + (inc.severity || 'p1').toLowerCase();
+
+          card.innerHTML = `
+            <div class="card-top">
+              <span class="card-id">${inc.id}</span>
+              <div>
+                <span class="badge ${srcBadgeClass}">${inc.source_type}</span>
+                <span class="badge ${sevBadgeClass}">${inc.severity}</span>
+              </div>
+            </div>
+            <div class="card-service">${inc.service}</div>
+            <div style="font-size:0.75rem; color:var(--text); margin-top:4px;">${inc.trigger_reason}</div>
+            <div class="card-meta">
+              <span>Status: <b style="color:#58a6ff;">${inc.status}</b></span>
+              <span>${new Date(inc.created_at).toLocaleTimeString()}</span>
+            </div>
+          `;
+          cont.appendChild(card);
+        });
+
+        if (currentIncidentId) {
+          selectIncident(currentIncidentId);
+        } else if (data.length > 0) {
+          selectIncident(data[0].id);
+        }
+      } catch (e) {
+        console.error("Failed to load incidents:", e);
+      }
+    }
+
+    function selectIncident(id) {
+      currentIncidentId = id;
+      const inc = incidentsCache.find(x => x.id === id);
+      if (!inc) return;
+
+      document.querySelectorAll('.incident-card').forEach(c => c.classList.remove('active'));
+      const activeCard = Array.from(document.querySelectorAll('.incident-card')).find(c => c.innerHTML.includes(id));
+      if (activeCard) activeCard.classList.add('active');
+
+      const btnRun = document.getElementById('btn-run-pipeline');
+      btnRun.style.display = inc.status !== 'RESOLVED' ? 'inline-block' : 'none';
+
+      const detail = document.getElementById('detail-container');
+      const srcBadgeClass = 'badge-' + (inc.source_type || 'demo').toLowerCase();
+
+      detail.innerHTML = `
+        <div class="detail-section">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <h2>${inc.id} — ${inc.service}</h2>
+            <div>
+              <span class="badge ${srcBadgeClass}">${inc.source_type.toUpperCase()}</span>
+              <span class="badge badge-${inc.severity.toLowerCase()}">${inc.severity}</span>
+            </div>
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-muted);">
+            Detected: ${inc.created_at} &nbsp;|&nbsp; Path: <code>${inc.source_path}</code>
+          </div>
+          <div style="margin-top:10px; font-weight:600; color:#ff7b72;">
+            Trigger: ${inc.trigger_reason}
+          </div>
+        </div>
+
+        ${inc.rca ? `
+          <div class="detail-section">
+            <div class="section-title">
+              <span>Root Cause Analysis (RCA)</span>
+              <span style="color:#3fb950;">Confidence: ${(inc.rca.confidence * 100).toFixed(0)}%</span>
+            </div>
+            <p style="font-size:0.85rem; line-height:1.4; color:var(--text-bright);">${inc.rca.root_cause}</p>
+            ${inc.rca.stack_trace_frames && inc.rca.stack_trace_frames.length ? `
+              <div style="margin-top:10px;">
+                <span class="input-label">Stack Trace Evidence:</span>
+                <div class="raw-log-box" style="color:#ff7b72;">${inc.rca.stack_trace_frames.join('\n')}</div>
+              </div>
+            ` : ''}
+          </div>
+        ` : ''}
+
+        ${inc.mitigation ? `
+          <div class="detail-section">
+            <div class="section-title">Remediation Action</div>
+            <p style="font-size:0.85rem; color:#79c0ff;">${inc.mitigation.action}</p>
+            <div style="font-size:0.75rem; color:#3fb950; margin-top:6px;">Status: ${inc.mitigation.status}</div>
+          </div>
+        ` : ''}
+
+        ${inc.post_mortem ? `
+          <div class="detail-section">
+            <div class="section-title">Incident Post-Mortem</div>
+            <pre style="font-size:0.75rem; color:var(--text); white-space:pre-wrap;">${inc.post_mortem}</pre>
+          </div>
+        ` : ''}
+
+        <div class="detail-section">
+          <div class="section-title">RAW LOG SAMPLE (First 10 lines that triggered incident)</div>
+          <div class="raw-log-box">${(inc.raw_logs || []).slice(0, 10).join('\n') || 'No raw logs recorded.'}</div>
+        </div>
+      `;
+    }
+
+    async function triggerDemoSimulation() {
+      appendLiveLog('agent_action', 'DEMO', 'Triggering demo incident simulation...');
+      const res = await fetch('/api/ingest/demo', { method: 'POST' });
+      const data = await res.json();
+      appendLiveLog('agent_action', 'DEMO', 'Demo simulation started.');
+      setTimeout(loadIncidents, 600);
+    }
+
+    async function readWindowsEvents() {
+      appendLiveLog('windows_events_read', 'WINDOWS', 'Reading Windows Application Event Viewer...');
+      const res = await fetch('/api/ingest/windows-events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: 'Application', last_n_events: 50, min_level: 'All' })
+      });
+      const data = await res.json();
+      appendLiveLog('windows_events_read', 'WINDOWS', `Windows: ${data.events_read} events read, ${data.events_published} published.`);
+      setTimeout(loadIncidents, 600);
+    }
+
+    async function ingestFile() {
+      const p = document.getElementById('file-path-input').value;
+      if (!p) return;
+      appendLiveLog('log_file_ingested', 'FILE', `Ingesting file: ${p}`);
+      const res = await fetch('/api/ingest/file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_path: p })
+      });
+      const data = await res.json();
+      appendLiveLog('log_file_ingested', 'FILE', `Ingested ${p}: ${data.lines_parsed} lines parsed, ${data.events_published} published.`);
+      setTimeout(loadIncidents, 600);
+    }
+
+    async function ingestPaste() {
+      const text = document.getElementById('paste-input').value;
+      const hint = document.getElementById('paste-format-hint').value;
+      if (!text.trim()) return;
+      appendLiveLog('log_paste_parsed', 'PASTE', `Parsing pasted logs (${hint})...`);
+      const res = await fetch('/api/ingest/paste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw_text: text, format_hint: hint })
+      });
+      const data = await res.json();
+      appendLiveLog('log_paste_parsed', 'PASTE', `Paste parsed: ${data.lines_parsed} events processed.`);
+      document.getElementById('paste-input').value = '';
+      setTimeout(loadIncidents, 600);
+    }
+
+    async function runPipelineForCurrent() {
+      if (!currentIncidentId) return;
+      appendLiveLog('agent_action', 'PIPELINE', `Executing autonomous remediation for ${currentIncidentId}...`);
+      const res = await fetch('/api/pipeline/run/' + currentIncidentId, { method: 'POST' });
+      const data = await res.json();
+      appendLiveLog('agent_action', 'RESOLVED', `Incident ${currentIncidentId} resolved via automated pipeline.`);
+      loadIncidents();
+    }
+
+    // Polling refresh
+    loadIncidents();
+    setInterval(loadIncidents, 3000);
+  </script>
+</body>
+</html>
